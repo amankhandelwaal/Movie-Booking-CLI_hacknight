@@ -8,7 +8,7 @@ typedef struct
     char name[50];
     char email[50];
     char mobile[10];
-    char *row;
+    char row;
     int col;
     char movie_selected[50];
 } Details;
@@ -20,7 +20,6 @@ typedef struct
 } Theatre;
 
 Theatre *list = NULL;
-
 Details *dynamic_array = NULL;
 int count = 0;
 
@@ -59,7 +58,7 @@ void InputDetails()
     printf("   >>> Enter your name: ");
     scanf(" %[^\n]", dynamic_array[count].name);
     getchar();
-    printf("   >>> Enter your email address:");
+    printf("   >>> Enter your email address: ");
     scanf("%s", dynamic_array[count].email);
     getchar();
     printf("   >>> Enter mobile number: ");
@@ -72,7 +71,10 @@ void InputDetails()
         printf("Could not open file data.csv for writing.\n");
         return;
     }
-    fprintf(file, "%s,%s,%s,%s,%d,%s\n", dynamic_array[count - 1].name, dynamic_array[count - 1].email, dynamic_array[count - 1].mobile, dynamic_array[count - 1].movie_selected, dynamic_array[count - 1].row, dynamic_array[count - 1].col);
+
+    // Write user details to the CSV with placeholders for movie selection and seat information
+    fprintf(file, "%s,%s,%s,%s,%c,%d\n", dynamic_array[count].name, dynamic_array[count].email, dynamic_array[count].mobile, "None", '-', 0);
+    fclose(file);
 
     count++;
 }
@@ -82,14 +84,23 @@ void ShowDetails()
     printf("   >>> Enter first or last name: ");
     char search[50];
     scanf("%s", search);
+    int found = 0;
     for (int i = 0; i < count; i++)
     {
         if (strstr(dynamic_array[i].name, search) != NULL)
         {
-            printf("   Name: %s\n   Mobile: %s\n   Email: %s\n", dynamic_array[i].name, dynamic_array[i].mobile, dynamic_array[i].email);
+            printf("   Name: %s\n   Mobile: %s\n   Email: %s\n   Movie: %s\n   Seat: %c-%d\n",
+                   dynamic_array[i].name, dynamic_array[i].mobile, dynamic_array[i].email,
+                   dynamic_array[i].movie_selected, dynamic_array[i].row, dynamic_array[i].col);
+            found = 1;
         }
     }
+    if (!found)
+    {
+        printf("   No details found\n");
+    }
 }
+
 void ReadCSVAndUpdateSeats(const char *filename, Theatre *theatre, char *moviename)
 {
     FILE *file = fopen(filename, "r");
@@ -102,23 +113,11 @@ void ReadCSVAndUpdateSeats(const char *filename, Theatre *theatre, char *moviena
     char line[256];
     while (fgets(line, sizeof(line), file))
     {
-        char *token;
         char movie[50], row;
         int col;
-        token = strtok(line, ",");
-        token = strtok(NULL, ",");
-        token = strtok(NULL, ",");
-        token = strtok(NULL, ",");
-        if (token)
-            strcpy(movie, token);
-        if (strcmp(movie, moviename) != 0)
+        sscanf(line, "%*[^,],%*[^,],%*[^,],%[^,],%c,%d", movie, &row, &col);
+        if (strcmp(movie, moviename) == 0 && row != '-' && col != 0)
         {
-            token = strtok(NULL, ",");
-            if (token)
-                row = token[0];
-            token = strtok(NULL, ",");
-            if (token)
-                col = atoi(token);
             int row_index = row - 'A';
             if (row_index >= 0 && row_index < 10 && col >= 1 && col <= 15)
             {
@@ -205,9 +204,16 @@ void BookSeat(Theatre *theatre, char *booked_seat, Details *user)
     {
         strcpy(theatre->seats[row_index][num - 1], booked_seat);
         printf("   Seat %c%d successfully booked!\n", row, num);
-        user->row = malloc(sizeof(char));
-        *(user->row) = row;
+        user->row = row;
         user->col = num;
+
+        // Update CSV with movie and seat details
+        FILE *file = fopen("data.csv", "a");
+        if (file)
+        {
+            fprintf(file, "%s,%s,%s,%s,%c,%d\n", user->name, user->email, user->mobile, user->movie_selected, user->row, user->col);
+            fclose(file);
+        }
     }
 }
 
@@ -221,49 +227,50 @@ void Book()
     {
         if (strstr(dynamic_array[i].name, search) != NULL)
         {
-            printf("   Which Movie would you like to watch:\n");
-            printf("   \t(1) Dune 2\n");
-            printf("   \t(2) Transformers One\n");
-            printf("   \t(3) Oppenheimer\n");
-            printf("   \t(4) Inception\n");
-            printf("   \t(5) Tenet\n");
-            printf("   >>> ");
-            int n;
-            scanf("%d", &n);
+            printf("   Which Movie would you like to book?\n");
+            printf("   (1) %s\n", one.movie_name);
+            printf("   (2) %s\n", two.movie_name);
+            printf("   (3) %s\n", three.movie_name);
+            printf("   (4) %s\n", four.movie_name);
+            printf("   (5) %s\n", five.movie_name);
 
-            Theatre *selected_movie;
-            char movie_chosen[50];
+            int option;
+            scanf("%d", &option);
 
-            switch (n)
+            Theatre *theatre = NULL;
+            char *selected_movie = NULL;
+
+            switch (option)
             {
             case 1:
-                selected_movie = &one;
-                strcpy(movie_chosen, "Dune 2");
+                theatre = &one;
+                selected_movie = one.movie_name;
                 break;
             case 2:
-                selected_movie = &two;
-                strcpy(movie_chosen, "Transformers One");
+                theatre = &two;
+                selected_movie = two.movie_name;
                 break;
             case 3:
-                selected_movie = &three;
-                strcpy(movie_chosen, "Oppenheimer");
+                theatre = &three;
+                selected_movie = three.movie_name;
                 break;
             case 4:
-                selected_movie = &four;
-                strcpy(movie_chosen, "Inception");
+                theatre = &four;
+                selected_movie = four.movie_name;
                 break;
             case 5:
-                selected_movie = &five;
-                strcpy(movie_chosen, "Tenet");
+                theatre = &five;
+                selected_movie = five.movie_name;
                 break;
             default:
-                printf("Invalid choice\n");
+                printf("   Invalid option.\n");
                 return;
             }
-            strcpy(dynamic_array[i].movie_selected, movie_chosen);
-            ReadCSVAndUpdateSeats("data.csv", selected_movie, movie_chosen);
-            DisplaySeats(selected_movie, movie_chosen);
-            BookSeat(selected_movie, "[X]", &dynamic_array[i]);
+
+            strcpy(dynamic_array[i].movie_selected, selected_movie);
+            ReadCSVAndUpdateSeats("data.csv", theatre, selected_movie);
+            DisplaySeats(theatre, selected_movie);
+            BookSeat(theatre, "[X]", &dynamic_array[i]);
         }
     }
 }
@@ -273,76 +280,70 @@ void GenerateBill()
     printf("   >>> Enter first or last name: ");
     char search[50];
     scanf("%s", search);
+    int found = 0;
     printf("\033[0;31m");
     for (int i = 0; i < count; i++)
     {
         if (strstr(dynamic_array[i].name, search) != NULL)
         {
+            found = 1;
             printf("\n\n\t\t   *************************************\n");
             printf("\t\t     * Name : %s\n", dynamic_array[i].name);
             printf("\t\t     * Email id : %s\n", dynamic_array[i].email);
             printf("\t\t     * Mobile No : %s\n", dynamic_array[i].mobile);
+
             time_t currentTime;
             struct tm *localTime;
             currentTime = time(NULL);
             localTime = localtime(&currentTime);
-            printf("\t\t     * %s", asctime(localTime));
+            printf("\t\t     * %s", asctime(localTime)); 
+
             printf("\t\t     * Movie Selected: %s\n", dynamic_array[i].movie_selected);
-            printf("\t\t     * Seat : %c-%d\n", *(dynamic_array[i].row), dynamic_array[i].col);
-            if ('A' <= *(dynamic_array[i].row) && *(dynamic_array[i].row) <= 'F')
+            printf("\t\t     * Seat : %c-%d\n", dynamic_array[i].row, dynamic_array[i].col);
+
+            if ('A' <= dynamic_array[i].row && dynamic_array[i].row <= 'F')
                 printf("\t\t     * Price = $200\n");
-            else if ('G' <= *(dynamic_array[i].row) && *(dynamic_array[i].row) <= 'I')
+            else if ('G' <= dynamic_array[i].row && dynamic_array[i].row <= 'I')
                 printf("\t\t     * Price = $300\n");
-            else if (*(dynamic_array[i].row) == 'J')
+            else if (dynamic_array[i].row == 'J')
                 printf("\t\t     * Price = $500\n");
+
             printf("\t\t   *************************************\n\n");
         }
+    }
+    if (!found)
+    {
+        printf("\t\t   No matching customer found.\n");
     }
     printf("\033[0m");
 }
 
 int main()
 {
-    one.movie_name = malloc(strlen("Dune 2") + 1);
-    strcpy(one.movie_name, "Dune 2");
-    two.movie_name = malloc(strlen("Transformers One") + 1);
-    strcpy(two.movie_name, "Transformers One");
-    three.movie_name = malloc(strlen("Oppenheimer") + 1);
-    strcpy(three.movie_name, "Oppenheimer");
-    four.movie_name = malloc(strlen("Inception") + 1);
-    strcpy(four.movie_name, "Inception");
-    five.movie_name = malloc(strlen("Tenet") + 1);
-    strcpy(five.movie_name, "Tenet");
-
-    char *empty_seat = "[ ]";
-    char *booked_seat = "[X]";
+    one.movie_name = "Dune 2";
+    two.movie_name = "Transformers One";
+    three.movie_name = "Oppenheimer";
+    four.movie_name = "Inception";
+    five.movie_name = "Tenet";
 
     for (int i = 0; i < 10; i++)
     {
         for (int j = 0; j < 15; j++)
         {
-            strcpy(one.seats[i][j], empty_seat);
-            strcpy(two.seats[i][j], empty_seat);
-            strcpy(three.seats[i][j], empty_seat);
-            strcpy(four.seats[i][j], empty_seat);
-            strcpy(five.seats[i][j], empty_seat);
+            strcpy(one.seats[i][j], "[ ]");
+            strcpy(two.seats[i][j], "[ ]");
+            strcpy(three.seats[i][j], "[ ]");
+            strcpy(four.seats[i][j], "[ ]");
+            strcpy(five.seats[i][j], "[ ]");
         }
     }
 
-    dynamic_array = malloc(sizeof(Details));
-    if (dynamic_array == NULL)
-    {
-        printf("Memory allocation failed!\n");
-        return 1;
-    }
-
-    int flag = 0;
-    while (flag != 1)
+    int choice = 0;
+    while (choice != 5)
     {
         PrintMenu();
-        int n;
-        scanf("%d", &n);
-        switch (n)
+        scanf("%d", &choice);
+        switch (choice)
         {
         case 1:
             InputDetails();
@@ -357,20 +358,14 @@ int main()
             GenerateBill();
             break;
         case 5:
-            flag = 1;
+            printf("Bye!\n");
             break;
         default:
-            printf("Invalid entry!!!\n");
+            printf("Invalid choice, please select again.\n");
             break;
         }
     }
 
     free(dynamic_array);
-    free(one.movie_name);
-    free(two.movie_name);
-    free(three.movie_name);
-    free(four.movie_name);
-    free(five.movie_name);
-
     return 0;
 }
