@@ -72,7 +72,6 @@ void InputDetails()
         return;
     }
 
-    // Write user details to the CSV with placeholders for movie selection and seat information
     fprintf(file, "%s,%s,%s,%s,%c,%d\n", dynamic_array[count].name, dynamic_array[count].email, dynamic_array[count].mobile, "None", '-', 0);
     fclose(file);
 
@@ -184,6 +183,39 @@ void DisplaySeats(Theatre *theatre, char *movie_name)
     printf("\t\t   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15\n\n");
 }
 
+void UpdateCSV(Details *user)
+{
+    FILE *file = fopen("data.csv", "r+");
+    if (!file)
+    {
+        printf("Could not open file data.csv for updating.\n");
+        return;
+    }
+
+    char line[256];
+    long pos = -1;
+    while (fgets(line, sizeof(line), file))
+    {
+        if (strstr(line, user->name) != NULL)
+        {
+            pos = ftell(file) - strlen(line);
+            break;
+        }
+    }
+
+    if (pos != -1)
+    {
+        fseek(file, pos, SEEK_SET);
+        fprintf(file, "%s,%s,%s,%s,%c,%d\n", user->name, user->email, user->mobile, user->movie_selected, user->row, user->col);
+    }
+    else
+    {
+        printf("   Could not find user in data.csv\n");
+    }
+
+    fclose(file);
+}
+
 void BookSeat(Theatre *theatre, char *booked_seat, Details *user)
 {
     char row;
@@ -196,24 +228,18 @@ void BookSeat(Theatre *theatre, char *booked_seat, Details *user)
 
     int row_index = row - 'A';
 
-    if (strcmp(theatre->seats[row_index][num - 1], booked_seat) == 0)
+    if (strcmp(theatre->seats[row_index][num - 1], "[X]") == 0)
     {
         printf("   Sorry, the seat %c%d is already booked.\n", row, num);
     }
     else
     {
-        strcpy(theatre->seats[row_index][num - 1], booked_seat);
+        strcpy(theatre->seats[row_index][num - 1], "[X]");
         printf("   Seat %c%d successfully booked!\n", row, num);
         user->row = row;
         user->col = num;
-
-        // Update CSV with movie and seat details
-        FILE *file = fopen("data.csv", "a");
-        if (file)
-        {
-            fprintf(file, "%s,%s,%s,%s,%c,%d\n", user->name, user->email, user->mobile, user->movie_selected, user->row, user->col);
-            fclose(file);
-        }
+        strcpy(user->movie_selected, theatre->movie_name);
+        UpdateCSV(user);
     }
 }
 
@@ -286,29 +312,32 @@ void GenerateBill()
     {
         if (strstr(dynamic_array[i].name, search) != NULL)
         {
-            found = 1;
-            printf("\n\n\t\t   *************************************\n");
-            printf("\t\t     * Name : %s\n", dynamic_array[i].name);
-            printf("\t\t     * Email id : %s\n", dynamic_array[i].email);
-            printf("\t\t     * Mobile No : %s\n", dynamic_array[i].mobile);
+            if (!found)
+            {
+                found = 1;
+                printf("\n\n\t\t   *************************************\n");
+                printf("\t\t     * Name : %s\n", dynamic_array[i].name);
+                printf("\t\t     * Email id : %s\n", dynamic_array[i].email);
+                printf("\t\t     * Mobile No : %s\n", dynamic_array[i].mobile);
 
-            time_t currentTime;
-            struct tm *localTime;
-            currentTime = time(NULL);
-            localTime = localtime(&currentTime);
-            printf("\t\t     * %s", asctime(localTime)); 
+                time_t currentTime;
+                struct tm *localTime;
+                currentTime = time(NULL);
+                localTime = localtime(&currentTime);
+                printf("\t\t     * %s", asctime(localTime));
 
-            printf("\t\t     * Movie Selected: %s\n", dynamic_array[i].movie_selected);
-            printf("\t\t     * Seat : %c-%d\n", dynamic_array[i].row, dynamic_array[i].col);
+                printf("\t\t     * Movie Selected: %s\n", dynamic_array[i].movie_selected);
+                printf("\t\t     * Seat : %c-%d\n", dynamic_array[i].row, dynamic_array[i].col);
 
-            if ('A' <= dynamic_array[i].row && dynamic_array[i].row <= 'F')
-                printf("\t\t     * Price = $200\n");
-            else if ('G' <= dynamic_array[i].row && dynamic_array[i].row <= 'I')
-                printf("\t\t     * Price = $300\n");
-            else if (dynamic_array[i].row == 'J')
-                printf("\t\t     * Price = $500\n");
+                if ('A' <= dynamic_array[i].row && dynamic_array[i].row <= 'F')
+                    printf("\t\t     * Price = $200\n");
+                else if ('G' <= dynamic_array[i].row && dynamic_array[i].row <= 'I')
+                    printf("\t\t     * Price = $300\n");
+                else if (dynamic_array[i].row == 'J')
+                    printf("\t\t     * Price = $500\n");
 
-            printf("\t\t   *************************************\n\n");
+                printf("\t\t   *************************************\n\n");
+            }
         }
     }
     if (!found)
